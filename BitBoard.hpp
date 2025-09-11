@@ -95,6 +95,10 @@ public:
 	}
 };
 
+bool operator==(const Cell& lhs, const Cell& rhs) {
+	return lhs.get_loc() == rhs.get_loc();
+}
+
 enum Player {
 	WHITE, BLACK
 };

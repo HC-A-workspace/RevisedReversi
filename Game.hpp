@@ -1,11 +1,17 @@
 #pragma once
 
+#include <functional>
 #include "Board.hpp"
+#include "AI.hpp"
 
 class Game {
 private:
 	Board board;
 	Player current_player = BLACK;
+	AI* black_ai = nullptr;
+	AI* white_ai = nullptr;
+	std::function<Cell(const Board&)> human_play;
+	Cell move = Cell::Pass();
 public:
 	Game() = default;
 
@@ -20,6 +26,20 @@ public:
 
 	Player get_current_player() const { return current_player; }
 
+	void set_white_AI(AI* ai) {
+		white_ai = ai;
+		white_ai->load_board(board);
+	}
+
+	void set_black_AI(AI* ai) {
+		black_ai = ai;
+		black_ai->load_board(board);
+	}
+
+	void set_human_play(std::function<Cell(const Board&)> human_play_) {
+		human_play = human_play_;
+	}
+
 	bool is_game_over() const { return board.finished(); }
 
 	bool has_valid_move() const { return board.has_candidate(); }
@@ -30,7 +50,24 @@ public:
 
 	bool is_valid_move(const std::string& move) const { return board.is_valid_move(from_cell(Cell(move))); }
 
+	inline AI* current_AI() const {
+		return (current_player == BLACK) ? black_ai : white_ai;
+	}
+
+	Cell choose_move() {
+		AI* ai = current_AI();
+		if (ai != nullptr) {
+			move = ai->choose_move();
+		}
+		else {
+			move = human_play(board);
+		}
+		return move;
+	}
+
 	void play(const BitBoard& move) {
+		if (black_ai != nullptr) black_ai->play(move);
+		if (white_ai != nullptr) white_ai->play(move);
 		board = board.play(move);
 		current_player = opponent(current_player);
 	}
@@ -44,6 +81,8 @@ public:
 	}
 
 	void pass() {
+		if (black_ai != nullptr) black_ai->pass();
+		if (white_ai != nullptr) white_ai->pass();
 		board = board.pass();
 		current_player = opponent(current_player);
 	}
@@ -68,6 +107,10 @@ public:
 		else {
 			return count_stones(board.get_opponent());
 		}
+	}
+
+	bool is_AI() const {
+		return current_AI() != nullptr;
 	}
 };
 

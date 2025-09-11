@@ -71,6 +71,8 @@ public:
 	BitBoard get_opponent() const { return opponent; }
 	
 	BitBoard get_candidates() const { return candidates; }
+
+	std::vector<Cell> get_candidate_list() const { return all_cells(candidates); }
 	
 	bool has_candidate() const { return !is_empty(candidates); }
 	
@@ -93,6 +95,10 @@ public:
 			}
 		}
 		return Board(opponent ^ flipped, self | move | flipped);
+	}
+
+	Board play(const Cell& move) const {
+		return play(from_cell(move));
 	}
 
 	Board pass() const {

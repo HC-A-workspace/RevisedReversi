@@ -126,7 +126,14 @@
     <ClCompile Include="RevisedReversi.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AI.hpp" />
+    <ClInclude Include="AlphaBetaAI.hpp" />
+    <ClInclude Include="BitBoard.hpp" />
     <ClInclude Include="Board.hpp" />
+    <ClInclude Include="Game.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

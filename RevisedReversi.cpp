@@ -1,19 +1,62 @@
 ﻿#include <iostream>
 
 #include "AI.hpp"
+#include "AlphaBetaAI.hpp"
 #include "Game.hpp"
 
 int main()
 {
-	BitBoard board = 0x1LL << 63;
-	std::cout << Cell(board).get_loc() << std::endl;
 	BitBoard white = from_cells({ Cell("d4"), Cell("e5")});
 	BitBoard black = from_cells({ Cell("d5"), Cell("e4") });
+
+	Board board(black, white);
 	
 	Game game(black, white);
 
-	RandomAI black_ai(game.get_board());
-	RandomAI white_ai(game.get_opponent_board());
+	std::string black_y_or_n;
+	while (black_y_or_n != "y" && black_y_or_n != "n") {
+		std::cout << "Do you use AI for black player? (y / n) : ";
+		std::cin >> black_y_or_n;
+	}
+
+	std::cout << std::endl;
+
+	std::string white_y_or_n;
+	while (white_y_or_n != "y" && white_y_or_n != "n") {
+		std::cout << "Do you use AI for white player? (y / n) : ";
+		std::cin >> white_y_or_n;
+	}
+
+	std::cout << std::endl;
+
+	if (black_y_or_n == "y") {
+		game.set_black_AI(new AlphaBetaAI());
+		//game.set_black_AI(new RandomAI());
+	}
+	if (white_y_or_n == "y") {
+		game.set_white_AI(new RandomAI());
+	}
+
+	auto human_play = [](const Board& board) {
+		std::string move;
+		std::cout << "Your move: ";
+		std::cin >> move;
+		bool is_valid = board.is_valid_move(from_cell(Cell(move)));
+		while (!is_valid) {
+			std::cout << "Invalid input. Try again." << std::endl;
+			std::cout << "Your move: ";
+			std::cin >> move;
+			if (!Cell::is_valid(move)) {
+				is_valid = false;
+			}
+			else {
+				is_valid = board.is_valid_move(from_cell(Cell(move)));
+			}
+		}
+		return Cell(move);
+	};
+
+	game.set_human_play(human_play);
 	
 	while(!game.is_game_over()) {
 		std::cout << game.to_string() << std::endl;
@@ -23,47 +66,25 @@ int main()
 
 		if (!game.has_valid_move()) {
 			std::cout << "No valid move. Passing..." << std::endl;
+			std::cout << std::endl;
+			std::cout << "-----------------------------" << std::endl;
+			std::cout << std::endl;
 			game.pass(); // pass
-			if (game.get_current_player() == BLACK) {
-				white_ai.opponent_move(Cell::Pass());
-				black_ai.pass();
-			}
-			else {
-				black_ai.opponent_move(Cell::Pass());
-				white_ai.pass();
-			}
 			continue;
 		}
-		std::cout << "Your move: ";
-		std::string move;
-		//std::cin >> move;
-		if (game.get_current_player() == BLACK) {
-			Cell ai_move = black_ai.choose_move();
-			std::cout << ai_move.to_string() << std::endl;
-			white_ai.opponent_move(ai_move);
+
+		Cell move = game.choose_move();
+		if (game.is_AI()) {
+			std::cout << "AI's move: " << move.to_string() << std::endl;
 		}
-		else {
-			Cell ai_move = white_ai.choose_move();
-			std::cout << ai_move.to_string() << std::endl;
-			black_ai.opponent_move(ai_move);
-		}
-		bool is_valid = game.is_valid_move(move);
-		while(!is_valid) {
-			std::cout << "Invalid input. Try again." << std::endl;
-			std::cout << "Your move: ";
-			std::cin >> move;
-			if (!Cell::is_valid(move)) {
-				is_valid = false;
-			}
-			else {
-				is_valid = game.is_valid_move(move);
-			}
-		}
+		std::cout << std::endl;
+		std::cout << "-----------------------------" << std::endl;
 		std::cout << std::endl;
 		game.play(move);
 	}
 	int white_count = game.white_count();
 	int black_count = game.black_count();
 	std::cout << game.to_string() << std::endl;
-	std::cout << "Game over. White: " << white_count << ", Black: " << black_count << std::endl;
+	std::cout << std::endl;
+	std::cout << "Game set. White: " << white_count << ", Black: " << black_count << std::endl;
 }

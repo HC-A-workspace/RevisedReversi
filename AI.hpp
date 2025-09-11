@@ -6,9 +6,20 @@ class AI {
 protected:
 	Board board;
 public:
+	AI() = default;
+
 	AI(const Board& init) : board(init) {};
-	virtual void opponent_move(const Cell& move) = 0;
+
+	virtual void load_board(const Board& board_) {
+		board = board_;
+	}
+
+	virtual int eval() const = 0;
+	
+	virtual void play(const Cell& move) = 0;
+	
 	virtual Cell choose_move() = 0;
+	
 	void pass() {
 		board = board.pass();
 	}
@@ -16,8 +27,8 @@ public:
 
 class RandomAI : public AI {
 public:
-	RandomAI(const Board& init) : AI(init) {};
-	void opponent_move(const Cell& move) override {
+	RandomAI() : AI() {};
+	void play(const Cell& move) override {
 		if (move.is_pass()) {
 			board = board.pass();
 		}
@@ -25,16 +36,19 @@ public:
 			board = board.play(from_cell(move));
 		}
 	};
+	
 	Cell choose_move() override {
 		if (!board.has_candidate()) {
-			board = board.pass();
 			return Cell::Pass();
 		}
 		BitBoard candidate_board = board.get_candidates();
 		std::vector<Cell> candidates = all_cells(candidate_board);
 		int idx = rand() % candidates.size();
 		Cell move = candidates[idx];
-		board = board.play(from_cell(move));
 		return move;
 	}
-}
+
+	int eval() const override {
+		return 0;
+	}
+};
