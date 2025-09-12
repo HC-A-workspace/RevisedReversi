@@ -2,6 +2,7 @@
 
 #include "AI.hpp"
 #include "MemorizedAlphaBetaAI.hpp"
+#include "NegaAlphaAI.hpp"
 #include "AlphaBetaAI.hpp"
 #include "Game.hpp"
 
@@ -31,7 +32,7 @@ int main()
 	std::cout << std::endl;
 
 	if (black_y_or_n == "y") {
-		game.set_black_AI(std::make_unique<AlphaBetaAI>(7));
+		game.set_black_AI(std::make_unique<AlphaBetaAI>(6));
 	}
 	if (white_y_or_n == "y") {
 		game.set_white_AI(std::make_unique<RandomAI>());

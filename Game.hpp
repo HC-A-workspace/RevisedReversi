@@ -86,6 +86,7 @@ public:
 		if (black_ai != nullptr) black_ai->pass();
 		if (white_ai != nullptr) white_ai->pass();
 		board = board.pass();
+		move = Cell::Pass();
 		current_player = opponent(current_player);
 	}
 
