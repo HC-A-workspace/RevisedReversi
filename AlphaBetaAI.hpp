@@ -1,161 +1,208 @@
 #pragma once
 
-#include <memory>
-#include <algorithm>
+#include <thread>
+#include <mutex>
 
 #include "AI.hpp"
 
-class Node {
-private:
-	Board board;
-	Node* parent = nullptr;
-	Cell prev_move;
-	int evaluation = 0;
-	std::vector<std::shared_ptr<Node>> children;
-public:
-	Node() = default;
-
-	Node(const Board& board_) : board(board_) {};
-
-	void add_child(const Board& child, const Cell& move) {
-		auto child_ptr = std::make_shared<Node>(child);
-		child_ptr->parent = this;
-		child_ptr->prev_move = move;
-		children.push_back(std::move(child_ptr));
-	}
-
-	void remove_children(const int idx) {
-		children.resize(idx);
-	}
-
-	void sort_children() {
-		std::sort(children.begin(), children.end(),
-			[](const std::shared_ptr<Node>& a, const std::shared_ptr<Node>& b) {
-				return a->evaluation > b->evaluation;
-			});
-	}
-
-	~Node() = default;
-
-	bool is_leaf() const {
-		return children.empty();
-	}
-
-	int get_eval() const { return evaluation; }
-
-	void set_eval(const int& eval) { evaluation = eval; }
-
-	Board get_board() const { return board; }
-
-	Node* get_parent() const { return parent; }
-
-	Cell get_prev_move() const { return prev_move; }
-
-	std::vector<std::shared_ptr<Node>> get_children() const { return children; }
-
-	void create_children() {
-		std::vector<Cell> candidates = board.get_candidate_list();
-		if (candidates.empty()) {
-			add_child(board.pass(), Cell::Pass());
-			return;
-		}
-		for (auto& cell : candidates) {
-			add_child(board.play(cell), cell);
-		}
-	}
-
-	std::shared_ptr<Node> play(const Cell& move) {
-		for (auto& child : children) {
-			if (child->prev_move == move) {
-				return child;
-			}
-		}
-		auto next = std::make_shared<Node>(board.play(move));
-		next->parent = this;
-		next->prev_move = move;
-		return next;
-	}
-
-	std::string to_string(int i = 0) {
-		std::string str = "";
-		str += std::to_string(i);
-		str += ' ';
-		str += std::to_string(evaluation);
-		str += '\n';
-		for (auto& child : children) {
-			str += child->to_string(i + 1);
-		}
-		return str;
-	}
-};
-
 class AlphaBetaAI : public AI {
 private:
-	int depth = 0;
-	Node root;
+	double depth;
+	int evaluation;
+	std::mutex mtx;
+	Cell move;
 
-	static int eval_leaf(const Board& board) {
-		return count_stones(board.get_self()) - count_stones(board.get_opponent());
+	using BoardInfo = std::pair<Board, Cell>;
+	
+	static int evaluate(const BoardInfo& board_info, const Board& prev) {
+		const Board board = board_info.first;
+
+		const BitBoard& self_board = board.get_self();
+		const BitBoard& opponent_board = board.get_opponent();
+
+		const int n_self = count_stones(self_board);
+		const int n_opposite = count_stones(opponent_board);
+
+		if (board.finished()) {
+			const int score_stone = n_self - n_opposite;
+			if (n_self > n_opposite) return score_stone + 5000;
+			else if (n_self < n_opposite) return score_stone - 5000;
+			else return 0;
+		}
+
+		const BitBoard& self_candidates = board.get_candidates();
+		const BitBoard& opponent_candidates = prev.get_candidates();
+
+
+		const int n_self_candidates = count_stones(self_candidates);
+		const int n_opponent_candidates = count_stones(opponent_candidates);
+
+		BitBoard self_fixed = 0x0LL, opponent_fixed = 0x0LL;
+		calculate_fixed_stones(self_board, opponent_board, self_fixed, opponent_fixed);
+
+		const int n_self_fixed = count_stones(self_fixed);
+		const int n_opponent_fixed = count_stones(opponent_fixed);
+
+
+		const BitBoard corner = 0x8100000000000081LL;
+		const int n_self_corner_cands = count_stones(self_candidates & corner);
+		const int n_opposite_corner_cands = count_stones(opponent_candidates & corner);
+
+		const int score_candidates = n_self_candidates - n_opponent_candidates;
+		const int score_fixed = n_self_fixed - n_opponent_fixed;
+		const int score_corner_cands = n_self_corner_cands - n_opposite_corner_cands;
+
+		int score = 3 * score_candidates + 5 * score_fixed + 5 * score_corner_cands;
+
+		if (n_opposite_corner_cands > 0) {
+			score -= 100;
+		}
+		if (n_self_corner_cands > 0) {
+			score += 100;
+		}
+		if (n_opponent_fixed > 0) {
+			score -= 100;
+		}
+		if (n_self_fixed > 0) {
+			score += 100;
+		}
+
+		if (n_self_fixed > BOARD_SIZE * BOARD_SIZE / 2) {
+			score += 50000;
+		}
+
+		if (n_opponent_fixed > BOARD_SIZE * BOARD_SIZE / 2) {
+			score -= 50000;
+		}
+
+		return score;
 	}
 
-	static void alpha_beta(Node& node, const int depth, int alpha, int beta) {
-		const Board board = node.get_board();
-		if (depth == 0) {
-			node.set_eval(eval_leaf(board));
-			return;
-		}
-		else if (board.finished()) {
-			return;
-		}
-		else if (node.is_leaf()) {
-			node.create_children();
-		}
-
-		std::vector<std::shared_ptr<Node>> children = node.get_children();
-
-		int idx = 0;
-		for (auto& child : node.get_children()) {
-			alpha_beta(*child, depth - 1, -beta, -alpha);
-			alpha = std::max(alpha, -child->get_eval());
-			idx++;
-			if (alpha >= beta) {
-				break;
+	static int openness(const BitBoard& empty, const Cell& cell) {
+		BitBoard stone = from_cell(cell);
+		int cnt = 0;
+		for (auto& dir : ALL_DIRS) {
+			if (!is_empty(translate(stone, dir) & empty)) {
+				cnt++;
 			}
 		}
-		node.remove_children(idx);
-
-		node.sort_children();
-
-		//std::cout << depth << " " << alpha << std::endl;
-
-		node.set_eval(alpha);
+		return cnt;
 	}
-	
+
+	static int evaluate_boardInfo(const BoardInfo& board_info) {
+		const Board& board = board_info.first;
+		const BitBoard oppo_candidates = board.get_candidates();
+		const BitBoard corner = 0x8100000000000081LL;
+
+		const int num_cand = count_stones(oppo_candidates);
+		const int num_cornoer = count_stones(oppo_candidates & corner);
+
+		const Cell& move = board_info.second;
+		const int open = openness(~(board.get_self() | board.get_opponent()), move);
+
+		return -num_cand - 3 * num_cornoer - 4 * open;
+	}
+
+	static std::vector<BoardInfo> sorted_children(const Board& board) {
+		auto candidates = board.get_candidate_list();
+
+		if (candidates.empty()) {
+			return std::vector<BoardInfo>({ std::make_pair(board.pass(), Cell::Pass()) });
+		}
+		else {
+			std::vector<BoardInfo> children(candidates.size());
+			size_t idx = 0;
+			for (auto& cell : candidates) {
+				children[idx++] = std::make_pair(board.play(cell), cell);
+			}
+			std::sort(children.begin(), children.end(),
+				[](const BoardInfo& a, const BoardInfo& b) {
+					return evaluate_boardInfo(a) > evaluate_boardInfo(b);
+				});
+			return children;
+		}
+
+	}
+
+	static int nega_alpha(const BoardInfo& board_info, const Board& prev, const double depth, int alpha, int beta) {
+		if (depth <= 0 || board_info.first.finished()) {
+			return -evaluate(board_info, prev);
+		}
+
+		std::vector<BoardInfo> children = sorted_children(board_info.first);
+
+		if (children.size() == 1) {
+			return std::max(alpha, -nega_alpha(children.at(0), board_info.first, depth - 0.5, -beta, -alpha));
+		}
+
+		int idx = 0;
+		for (auto& child : children) {
+			if (idx < 2) {
+				alpha = std::max(alpha, -nega_alpha(child, board_info.first, depth - 0.7, -beta, -alpha));
+			}
+			else if (idx < 5) {
+				alpha = std::max(alpha, -nega_alpha(child, board_info.first, depth - 1.0, -beta, -alpha));
+			}
+			else if (idx < 8) {
+				alpha = std::max(alpha, -nega_alpha(child, board_info.first, depth - 1.7, -beta, -alpha));
+			}
+			else {
+				alpha = std::max(alpha, -nega_alpha(child, board_info.first, depth - 2.3, -beta, -alpha));
+			}
+			idx++;
+			if (alpha >= beta) return alpha;
+		}
+		return alpha;
+	}
+
 public:
-	AlphaBetaAI(const int depth = 3) : AI(), depth(depth) {};
-
-	void load_board(const Board& board_) override {
-		board = board_;
-		root = Node(board);
-	}
+	AlphaBetaAI(const int depth_) : AI(), depth(depth_) {};
 
 	int eval() const override {
-		auto child = root.get_children();
-		auto& next = child.at(0);
-		return next->get_eval();
+		return evaluation;
 	}
 
-	void play(const Cell& move) override {
-		root = *root.play(move).get();
-		std::cout << root.to_string() << std::endl;
+	void worker(const BoardInfo& child)
+	{
+		int tmp = nega_alpha(child, board, depth, evaluation, INT_MAX - 1);
+
+		std::lock_guard<std::mutex> lock(mtx);
+		if (evaluation < tmp) {
+			evaluation = tmp;
+			move = child.second;
+		}
 	}
 
 	Cell choose_move() override {
-		std::cout << "eval: " << root.get_eval() << std::endl;
-		alpha_beta(root, depth, INT_MIN, INT_MAX);
-		std::cout << root.to_string() << std::endl;
-		auto child = root.get_children();
-		auto& next = child.at(0);
-		return next->get_prev_move();
+		std::chrono::system_clock::time_point  start, end;
+		start = std::chrono::system_clock::now();
+
+		auto children = sorted_children(board);
+
+		std::vector<std::thread> threads;
+
+		evaluation = INT_MIN + 1;
+
+		for (auto& child : children) {
+			threads.push_back(std::thread(&AlphaBetaAI::worker, this, child));
+			//int ev = nega_alpha(child, board, depth, alpha, INT_MAX - 1);
+			//if (ev > alpha) {
+			//	alpha = ev;
+			//	move = child.second;
+			//}
+		}
+
+		for (auto& thd : threads)
+		{
+			thd.join();
+		}
+
+
+		//evaluation = alpha;
+
+		end = std::chrono::system_clock::now();
+		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+		return move;
 	}
 };

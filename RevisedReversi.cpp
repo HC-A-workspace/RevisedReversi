@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 
 #include "AI.hpp"
+#include "MemorizedAlphaBetaAI.hpp"
 #include "AlphaBetaAI.hpp"
 #include "Game.hpp"
 
@@ -10,7 +11,7 @@ int main()
 	BitBoard black = from_cells({ Cell("d5"), Cell("e4") });
 
 	Board board(black, white);
-	
+
 	Game game(black, white);
 
 	std::string black_y_or_n;
@@ -30,11 +31,10 @@ int main()
 	std::cout << std::endl;
 
 	if (black_y_or_n == "y") {
-		game.set_black_AI(new AlphaBetaAI());
-		//game.set_black_AI(new RandomAI());
+		game.set_black_AI(std::make_unique<AlphaBetaAI>(7));
 	}
 	if (white_y_or_n == "y") {
-		game.set_white_AI(new RandomAI());
+		game.set_white_AI(std::make_unique<RandomAI>());
 	}
 
 	auto human_play = [](const Board& board) {

@@ -26,9 +26,7 @@ public:
 	Board() = default;
 	
 	Board(const BitBoard& self_, const BitBoard& opponent_)
-		: self(self_), opponent(opponent_) {
-		update_candidates();
-	};
+		: self(self_), opponent(opponent_), candidates(calculate_candidates(self, opponent)) {};
 	
 	Board(const std::vector<std::vector<int>>& self_table, const std::vector<std::vector<int>>& opponent_table)
 		: Board(from_table(self_table), from_table(opponent_table)) {};
@@ -36,9 +34,18 @@ public:
 	Board(const std::vector<Cell>& self_cells, const std::vector<Cell>& opponent_cells)
 		: Board(from_cells(self_cells), from_cells(opponent_cells)) {};
 
-	std::string to_string(const Player& player = BLACK) const {
+	std::string to_string(const Player& player = BLACK, bool display_fixed = false, const Cell& move = Cell::Pass()) const {
 		char self_mark = (player == BLACK) ? 'x' : 'o';
 		char opponent_mark = (player == BLACK) ? 'o' : 'x';
+		char self_fixed_mark = (player == BLACK) ? 'X' : 'O';
+		char opponent_fixed_mark = (player == BLACK) ? 'O' : 'X';
+		char move_mark = (player == BLACK) ? 'a' : '+';
+
+		BitBoard self_fixed = 0x0LL, opponent_fixed = 0x0LL;
+
+		if (display_fixed) {
+			calculate_fixed_stones(self, opponent, self_fixed, opponent_fixed);
+		}
 
 		std::string out = " abcdefgh\n";
 		BitBoard stone = 0x1LL;
@@ -46,11 +53,24 @@ public:
 			if (n % BOARD_SIZE == 0) {
 				out += std::to_string(n / BOARD_SIZE + 1);
 			}
-			if (!is_empty(stone & self)) {
-				out += self_mark;
+			if (n == move.get_loc()) {
+				out += move_mark;
+			}
+			else if (!is_empty(stone & self)) {
+				if (display_fixed && !is_empty(stone & self_fixed)) {
+					out += self_fixed_mark;
+				}
+				else {
+					out += self_mark;
+				}
 			}
 			else if (!is_empty(stone & opponent)) {
-				out += opponent_mark;
+				if (display_fixed && !is_empty(stone & opponent_fixed)) {
+					out += opponent_fixed_mark;
+				}
+				else {
+					out += opponent_mark;
+				}
 			}
 			else if (!is_empty(stone & candidates)) {
 				out += '_';

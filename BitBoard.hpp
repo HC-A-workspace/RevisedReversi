@@ -252,8 +252,73 @@ inline void translate_self(BitBoard& board, const Direction& dir, const int& shi
 	}
 }
 
-BitBoard translate(const BitBoard& board, const Direction& dir, const int& shift=1) {
+inline BitBoard translate(const BitBoard& board, const Direction& dir, const int& shift=1) {
 	auto out = board;
 	translate_self(out, dir, shift);
 	return out;
+}
+
+BitBoard calculate_candidates(const BitBoard& self, const BitBoard& opponent) {
+	BitBoard candidates = 0x0LL;
+
+	BitBoard empty = ~(self | opponent);
+
+	for (auto dir : ALL_DIRS) {
+		BitBoard shifted = self;
+		while (!is_empty(shifted)) {
+			shifted = translate(shifted, dir) & opponent;
+			candidates |= translate(shifted, dir) & empty;
+		}
+	}
+
+	return candidates;
+}
+
+inline void calculate_fixed_stones_helper(const BitBoard& self, const BitBoard& opponent, const BitBoard& empty, BitBoard& self_fixed, BitBoard& opponent_fixed,
+	const Direction& dir_1, const Direction& dir_2) {
+
+	BitBoard fixed_1 = translate(empty, dir_1, 1) | empty;
+	fixed_1 |= translate(fixed_1, dir_1, 2);
+	fixed_1 |= translate(fixed_1, dir_1, 4);
+
+	BitBoard fixed_2 = translate(empty, dir_2, 1) | empty;
+	fixed_2 |= translate(fixed_2, dir_2, 2);
+	fixed_2 |= translate(fixed_2, dir_2, 4);
+
+	BitBoard fixed_self_1 = translate(~self, dir_1, 1) | ~self;
+	fixed_self_1 |= translate(fixed_self_1, dir_1, 2);
+	fixed_self_1 |= translate(fixed_self_1, dir_1, 4);
+
+	BitBoard fixed_self_2 = translate(~self, dir_2, 1) | ~self;
+	fixed_self_2 |= translate(fixed_self_2, dir_2, 2);
+	fixed_self_2 |= translate(fixed_self_2, dir_2, 4);
+
+	BitBoard fixed_opponent_1 = translate(~opponent, dir_1, 1) | ~opponent;
+	fixed_opponent_1 |= translate(fixed_opponent_1, dir_1, 2);
+	fixed_opponent_1 |= translate(fixed_opponent_1, dir_1, 4);
+
+	BitBoard fixed_opponent_2 = translate(~opponent, dir_2, 1) | ~opponent;
+	fixed_opponent_2 |= translate(fixed_opponent_2, dir_2, 2);
+	fixed_opponent_2 |= translate(fixed_opponent_2, dir_2, 4);
+
+	self_fixed &= (~(fixed_1 | fixed_2)) | (~(fixed_self_1 & fixed_self_2));
+	opponent_fixed &= (~(fixed_1 | fixed_2)) | (~(fixed_opponent_1 & fixed_opponent_2));
+}
+
+void calculate_fixed_stones(const BitBoard& self, const BitBoard& opponent, BitBoard& self_fixed, BitBoard& opponent_fixed) {
+	BitBoard empty = ~(self | opponent);
+	self_fixed = self;
+	opponent_fixed = opponent;
+
+	//Fixed for LR
+	calculate_fixed_stones_helper(self, opponent, empty, self_fixed, opponent_fixed, LEFT, RIGHT);
+
+	//Fixed for UD
+	calculate_fixed_stones_helper(self, opponent, empty, self_fixed, opponent_fixed, UP, DOWN);
+
+	//Fixed for UL-DR
+	calculate_fixed_stones_helper(self, opponent, empty, self_fixed, opponent_fixed, UP_LEFT, DOWN_RIGHT);
+
+	//Fixed for UR-DL
+	calculate_fixed_stones_helper(self, opponent, empty, self_fixed, opponent_fixed, UP_RIGHT, DOWN_LEFT);
 }

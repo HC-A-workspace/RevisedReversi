@@ -8,8 +8,8 @@ class Game {
 private:
 	Board board;
 	Player current_player = BLACK;
-	AI* black_ai = nullptr;
-	AI* white_ai = nullptr;
+	std::unique_ptr<AI> black_ai = nullptr;
+	std::unique_ptr<AI> white_ai = nullptr;
 	std::function<Cell(const Board&)> human_play;
 	Cell move = Cell::Pass();
 public:
@@ -26,13 +26,13 @@ public:
 
 	Player get_current_player() const { return current_player; }
 
-	void set_white_AI(AI* ai) {
-		white_ai = ai;
+	void set_white_AI(std::unique_ptr<AI> ai) {
+		white_ai = std::move(ai);
 		white_ai->load_board(board);
 	}
 
-	void set_black_AI(AI* ai) {
-		black_ai = ai;
+	void set_black_AI(std::unique_ptr<AI> ai) {
+		black_ai = std::move(ai);
 		black_ai->load_board(board);
 	}
 
@@ -51,13 +51,15 @@ public:
 	bool is_valid_move(const std::string& move) const { return board.is_valid_move(from_cell(Cell(move))); }
 
 	inline AI* current_AI() const {
-		return (current_player == BLACK) ? black_ai : white_ai;
+		return (current_player == BLACK) ? black_ai.get() : white_ai.get();
 	}
 
 	Cell choose_move() {
 		AI* ai = current_AI();
 		if (ai != nullptr) {
 			move = ai->choose_move();
+			std::cout << "evaluation: " << ai->eval() << std::endl;
+			std::cout << "time: " << ai->elapsed << " ms" << std::endl;
 		}
 		else {
 			move = human_play(board);
@@ -88,7 +90,7 @@ public:
 	}
 
 	std::string to_string() const {
-		return board.to_string(current_player);
+		return board.to_string(current_player, true, move);
 	}
 
 	int white_count() const {
