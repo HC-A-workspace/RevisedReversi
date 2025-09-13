@@ -32,7 +32,7 @@ int main()
 	std::cout << std::endl;
 
 	if (black_y_or_n == "y") {
-		game.set_black_AI(std::make_unique<AlphaBetaAI>(6));
+		game.set_black_AI(std::make_unique<AlphaBetaAI>(8));
 	}
 	if (white_y_or_n == "y") {
 		game.set_white_AI(std::make_unique<RandomAI>());

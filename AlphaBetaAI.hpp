@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <mutex>
+#include <algorithm>
 
 #include "AI.hpp"
 
@@ -12,54 +13,7 @@ private:
 	std::mutex mtx;
 	Cell move;
 
-	using BoardInfo = std::pair<Board, Cell>;
-
-	static int openness(const BitBoard& empty, const Cell& cell) {
-		BitBoard stone = from_cell(cell);
-		int cnt = 0;
-		for (auto& dir : ALL_DIRS) {
-			if (!is_empty(translate(stone, dir) & empty)) {
-				cnt++;
-			}
-		}
-		return cnt;
-	}
-
-	static int evaluate_boardInfo(const BoardInfo& board_info) {
-		const Board& board = board_info.first;
-		const BitBoard oppo_candidates = board.get_candidates();
-		const BitBoard corner = 0x8100000000000081LL;
-
-		const int num_cand = count_stones(oppo_candidates);
-		const int num_cornoer = count_stones(oppo_candidates & corner);
-
-		const Cell& move = board_info.second;
-		const int open = openness(~(board.get_self() | board.get_opponent()), move);
-
-		return -num_cand - 3 * num_cornoer - 4 * open;
-	}
-
-	static std::vector<BoardInfo> sorted_children(const Board& board) {
-		auto candidates = board.get_candidate_list();
-
-		if (candidates.empty()) {
-			return std::vector<BoardInfo>({ std::make_pair(board.pass(), Cell::Pass()) });
-		}
-		else {
-			std::vector<BoardInfo> children(candidates.size());
-			size_t idx = 0;
-			for (auto& cell : candidates) {
-				children[idx++] = std::make_pair(board.play(cell), cell);
-			}
-			std::sort(children.begin(), children.end(),
-				[](const BoardInfo& a, const BoardInfo& b) {
-					return evaluate_boardInfo(a) > evaluate_boardInfo(b);
-				});
-			return children;
-		}
-	}
-
-	static int near_empty(const BitBoard& stones, const BitBoard& empty) {
+	static int nearby_empty(const BitBoard& stones, const BitBoard& empty) {
 		BitBoard near = 0x0LL;
 
 		for (auto& dir : ALL_DIRS) {
@@ -69,8 +23,50 @@ private:
 		return count_stones(near);
 	}
 
-	static int evaluate(const BoardInfo& board_info, const Board& prev, const bool is_myturn) {
-		const Board board = board_info.first;
+	static int evaluate_child(const Board& board, const Board& prev, const bool is_myturn) {
+		const BitBoard& self_board = is_myturn ? board.get_self() : board.get_opponent();
+		const BitBoard& opponent_board = is_myturn ? board.get_opponent() : board.get_self();
+
+		const BitBoard empty = ~(self_board | opponent_board);
+
+		const BitBoard& self_candidates = is_myturn ? board.get_candidates() : prev.get_candidates();
+		const BitBoard& opponent_candidates = is_myturn ? prev.get_candidates() : board.get_candidates();
+
+		const BitBoard diff = board.get_opponent() ^ prev.get_self();
+
+		const int n_diff_open = nearby_empty(diff, empty);
+
+		const BitBoard corner = 0x8100000000000081LL;
+
+		const int num_cand = count_stones(opponent_candidates);
+		const int num_cornoer = count_stones(opponent_candidates & corner);
+
+		const int open = is_myturn ? n_diff_open : -n_diff_open;
+
+		return -num_cand - 3 * num_cornoer + 4 * open;
+	}
+
+	static std::vector<Board> sorted_children(const Board& board, const bool is_myturn) {
+		auto candidates = board.get_candidate_list();
+
+		if (candidates.empty()) {
+			return std::vector<Board>({ board.pass() });
+		}
+		else {
+			std::vector<Board> children(candidates.size());
+			size_t idx = 0;
+			for (auto& cell : candidates) {
+				children[idx++] = board.play(cell);
+			}
+			std::sort(children.begin(), children.end(),
+				[board, is_myturn](const Board& a, const Board& b) {
+					return evaluate_child(a, board, !is_myturn) > evaluate_child(b, board, !is_myturn);
+				});
+			return children;
+		}
+	}
+
+	static int evaluate(const Board& board, const Board& prev, const bool is_myturn) {
 
 		const BitBoard& self_board = is_myturn ? board.get_self() : board.get_opponent();
 		const BitBoard& opponent_board = is_myturn ? board.get_opponent() : board.get_self();
@@ -106,9 +102,9 @@ private:
 
 		const BitBoard diff = board.get_opponent() ^ prev.get_self();
 
-		const int n_diff_open = near_empty(diff ^ (is_myturn ? opponent_fixed : self_fixed), empty);
-		const int n_self_open = near_empty(self_board ^ self_fixed, empty);
-		//const int n_opponent_open = near_empty(opponent_board ^ opponent_fixed, ~(self_board | opponent_board));
+		const int n_diff_open = nearby_empty(diff ^ (is_myturn ? opponent_fixed : self_fixed), empty);
+		const int n_self_open = nearby_empty(self_board ^ self_fixed, empty);
+		//const int n_opponent_open = nearby_empty(opponent_board ^ opponent_fixed, ~(self_board | opponent_board));
 
 		const int score_open = - n_self_open + 2 * (is_myturn ? n_diff_open : -n_diff_open);
 		const int score_candidates = - n_opponent_candidates;
@@ -140,34 +136,34 @@ private:
 		return score;
 	}
 
-	static int alpha_beta(const BoardInfo& board_info, const Board& prev, const double depth, const bool is_myturn, int alpha, int beta) {
-		if (depth <= 0 || board_info.first.finished()) {
-			return evaluate(board_info, prev, is_myturn);
+	static int alpha_beta(const Board& board, const Board& prev, const double depth, const bool is_myturn, int alpha, int beta) {
+		if (depth <= 0 || board.finished()) {
+			return evaluate(board, prev, is_myturn);
 		}
 
-		std::vector<BoardInfo> children = sorted_children(board_info.first);
+		std::vector<Board> children = sorted_children(board, is_myturn);
 
 		if (is_myturn) {
 			if (children.size() == 1) {
-				return std::max(alpha, alpha_beta(children.at(0), board_info.first, depth, !is_myturn, alpha, beta));
+				return std::max(alpha, alpha_beta(children.at(0), board, depth, !is_myturn, alpha, beta));
 			}
 
 			int idx = 0;
 			for (auto& child : children) {
 				if (idx < 2) {
-					alpha = std::max(alpha, alpha_beta(child, board_info.first, depth - 0.7, !is_myturn, alpha, beta));
+					alpha = std::max(alpha, alpha_beta(child, board, depth - 0.7, !is_myturn, alpha, beta));
 				}
 				else if (idx < 5) {
-					alpha = std::max(alpha, alpha_beta(child, board_info.first, depth - 1.0, !is_myturn, alpha, beta));
+					alpha = std::max(alpha, alpha_beta(child, board, depth - 1.0, !is_myturn, alpha, beta));
 				}
 				else if (idx < 8) {
-					alpha = std::max(alpha, alpha_beta(child, board_info.first, depth - 1.7, !is_myturn, alpha, beta));
+					alpha = std::max(alpha, alpha_beta(child, board, depth - 1.7, !is_myturn, alpha, beta));
 				}
 				else if (idx < 10) {
-					alpha = std::max(alpha, alpha_beta(child, board_info.first, depth - 2.3, !is_myturn, alpha, beta));
+					alpha = std::max(alpha, alpha_beta(child, board, depth - 2.3, !is_myturn, alpha, beta));
 				}
 				else {
-					alpha = std::max(alpha, alpha_beta(child, board_info.first, depth - 3.0, !is_myturn, alpha, beta));
+					alpha = std::max(alpha, alpha_beta(child, board, depth - 3.0, !is_myturn, alpha, beta));
 				}
 				idx++;
 				if (alpha >= beta) return alpha;
@@ -176,25 +172,26 @@ private:
 		}
 		else {
 			if (children.size() == 1) {
-				return std::min(beta, alpha_beta(children.at(0), board_info.first, depth, !is_myturn, alpha, beta));
+				return std::min(beta, alpha_beta(children.at(0), board, depth, !is_myturn, alpha, beta));
 			}
+			std::reverse(children.begin(), children.end());
 
 			int idx = 0;
 			for (auto& child : children) {
 				if (idx < 2) {
-					beta = std::min(beta, alpha_beta(child, board_info.first, depth - 0.7, !is_myturn, alpha, beta));
+					beta = std::min(beta, alpha_beta(child, board, depth - 0.7, !is_myturn, alpha, beta));
 				}
 				else if (idx < 5) {
-					beta = std::min(beta, alpha_beta(child, board_info.first, depth - 1.0, !is_myturn, alpha, beta));
+					beta = std::min(beta, alpha_beta(child, board, depth - 1.0, !is_myturn, alpha, beta));
 				}
 				else if (idx < 8) {
-					beta = std::min(beta, alpha_beta(child, board_info.first, depth - 1.7, !is_myturn, alpha, beta));
+					beta = std::min(beta, alpha_beta(child, board, depth - 1.7, !is_myturn, alpha, beta));
 				}
 				else if (idx < 10) {
-					beta = std::min(beta, alpha_beta(child, board_info.first, depth - 2.3, !is_myturn, alpha, beta));
+					beta = std::min(beta, alpha_beta(child, board, depth - 2.3, !is_myturn, alpha, beta));
 				}
 				else {
-					beta = std::min(beta, alpha_beta(child, board_info.first, depth - 3.0, !is_myturn, alpha, beta));
+					beta = std::min(beta, alpha_beta(child, board, depth - 3.0, !is_myturn, alpha, beta));
 				}
 				idx++;
 				if (alpha >= beta) return beta;
@@ -211,22 +208,22 @@ public:
 		return evaluation;
 	}
 
-	void worker(const BoardInfo& child, const double depth)
+	void worker(const Board& child, const Board& board, const double depth)
 	{
 		int tmp = alpha_beta(child, board, depth, false, evaluation, INT_MAX - 1);
 
 		std::lock_guard<std::mutex> lock(mtx);
 		if (evaluation < tmp) {
 			evaluation = tmp;
-			move = child.second;
+			move = Cell((child.get_opponent() | child.get_self()) ^ (board.get_opponent() | board.get_self()));
 		}
 	}
 
 	Cell choose_move() override {
-		std::chrono::system_clock::time_point  start, end;
+		std::chrono::system_clock::time_point start, end;
 		start = std::chrono::system_clock::now();
 
-		auto children = sorted_children(board);
+		auto children = sorted_children(board, true);
 
 		const int rest_turn = count_stones(~(board.get_opponent() | board.get_self()));
 
@@ -238,13 +235,13 @@ public:
 			int cnt = 0;
 			for (auto& child : children) {
 				if (cnt < 2) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, depth + 3.5));
+					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + 3.5));
 				}
 				else if (cnt < 6) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, depth + 2.0));
+					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + 2.0));
 				}
 				else {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, depth));
+					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth));
 				}
 				cnt++;
 			}
@@ -253,13 +250,13 @@ public:
 			int cnt = 0;
 			for (auto& child : children) {
 				if (cnt < 2) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, depth + 0.5));
+					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + 0.5));
 				}
 				else if (cnt < 6) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, depth));
+					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth));
 				}
 				else {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, depth - 0.5));
+					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth - 0.5));
 				}
 				cnt++;
 			}
@@ -270,8 +267,6 @@ public:
 			thd.join();
 		}
 
-
-		//evaluation = alpha;
 
 		end = std::chrono::system_clock::now();
 		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
