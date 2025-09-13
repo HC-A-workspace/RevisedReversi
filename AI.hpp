@@ -33,6 +33,10 @@ public:
 	virtual void pass() {
 		board = board.pass();
 	}
+
+	virtual void clear() {
+		board = Board();
+	}
 };
 
 #include <stdlib.h>

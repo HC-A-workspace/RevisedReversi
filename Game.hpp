@@ -118,5 +118,90 @@ public:
 	bool is_AI() const {
 		return current_AI() != nullptr;
 	}
+
+	void play_on_console(std::unique_ptr<AI> black_ai_, std::unique_ptr<AI> white_ai_) {
+		std::string black_y_or_n;
+		while (black_y_or_n != "y" && black_y_or_n != "n") {
+			std::cout << "Do you use AI for black player? (y / n) : ";
+			std::cin >> black_y_or_n;
+		}
+
+		std::cout << std::endl;
+
+		std::string white_y_or_n;
+		while (white_y_or_n != "y" && white_y_or_n != "n") {
+			std::cout << "Do you use AI for white player? (y / n) : ";
+			std::cin >> white_y_or_n;
+		}
+
+		std::cout << std::endl;
+
+		if (black_y_or_n == "y") {
+			set_black_AI(std::move(black_ai_));
+		}
+		if (white_y_or_n == "y") {
+			set_white_AI(std::move(white_ai_));
+		}
+
+		auto human_play = [](const Board& board) {
+			std::string move;
+			std::cout << "Your move: ";
+			std::cin >> move;
+			bool is_valid = board.is_valid_move(from_cell(Cell(move)));
+			while (!is_valid) {
+				std::cout << "Invalid input. Try again." << std::endl;
+				std::cout << "Your move: ";
+				std::cin >> move;
+				if (!Cell::is_valid(move)) {
+					is_valid = false;
+				}
+				else {
+					is_valid = board.is_valid_move(from_cell(Cell(move)));
+				}
+			}
+			return Cell(move);
+			};
+
+		set_human_play(human_play);
+
+		while (!is_game_over()) {
+			std::cout << to_string() << std::endl;
+			std::cout << "Black: " << black_count() << ", White: " << white_count() << std::endl;
+			std::cout << std::endl;
+			std::cout << (get_current_player() == BLACK ? "Black" : "White") << "'s turn." << std::endl;
+
+			if (!has_valid_move()) {
+				std::cout << "No valid move. Passing..." << std::endl;
+				std::cout << std::endl;
+				std::cout << "-----------------------------" << std::endl;
+				std::cout << std::endl;
+				pass(); // pass
+				continue;
+			}
+
+			Cell move = choose_move();
+			if (is_AI()) {
+				std::cout << "AI's move: " << move.to_string() << std::endl;
+			}
+			std::cout << std::endl;
+			std::cout << "-----------------------------" << std::endl;
+			std::cout << std::endl;
+			play(move);
+		}
+		int n_black = black_count();
+		int n_white= white_count();
+		std::cout << to_string() << std::endl;
+		std::cout << std::endl;
+		std::cout << "Game set. Black: " << n_black << ", White: " << n_white << std::endl;
+		if (n_black > n_white) {
+			std::cout << "Black wins\n";
+		}
+		else if (n_black < n_white) {
+			std::cout << "White wins\n";
+		}
+		else {
+			std::cout << "Draw\n";
+		}
+	}
 };
 

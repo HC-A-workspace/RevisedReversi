@@ -6,6 +6,7 @@
 #include <string>
 
 #include "Game.hpp"
+#include "Feature.hpp"
 
 constexpr int OFFSET_BYTES = 16;
 constexpr int ONE_GAME_BYTES = 68;
@@ -24,30 +25,51 @@ Cell byte_to_cell(const Byte& byte) {
 	return Cell((int)(byte / 10) - 1, byte % 10 - 1);
 }
 
-void read_game(const std::vector<Byte>& bytes, const size_t game_id) {
+std::string read_game(const std::vector<Byte>& bytes, const size_t game_id) {
 	const size_t offset = OFFSET_BYTES + ONE_GAME_BYTES * game_id;
 	auto it = bytes.begin() + offset;
 
 	it = it + 8;
 
+	std::vector<std::string> features_list;
+
 	Game game;
-	std::cout << "\n-----------------------------\n-----------------------------\n";
+
+	Board prev = game.get_board().pass();
+	Board current = game.get_board();
+
+	bool is_myturn = true;
+
+	int turn = 0;
 
 	while (!game.is_game_over()) {
-		std::cout << game.to_string() << std::endl;
+		if (turn > 6) {
+			auto features = get_feature_params(current, prev, is_myturn);
+			if (!features.empty()) {
+				std::string str_features = "";
+				for (auto& f : features) {
+					str_features += std::to_string(f) + ", ";
+
+				}
+				features_list.push_back(str_features);
+			}
+		}
+	
+		prev = current;
+
 		if (game.has_valid_move()) {
 			auto move = byte_to_cell(*it++);
 			game.is_valid_move(move);
 			game.play(move);
-			std::cout << "move: " << move.to_string() << std::endl;
 		}
 		else {
 			game.pass();
-			std::cout << "move: pass" << std::endl;
 		}
-		std::cout << "\n-----------------------------\n";
+		current = game.get_board();
+		is_myturn = !is_myturn;
+		turn++;
 	}
-	std::cout << game.to_string() << std::endl;
+	return "";
 };
 
 void wthor_reader(std::string wthor_name) {
@@ -67,7 +89,8 @@ void wthor_reader(std::string wthor_name) {
 
 	size_t num_games = (bytes.size() - OFFSET_BYTES) / ONE_GAME_BYTES;
 
-	for (size_t id = 0; id < num_games; ++id) {
-		read_game(bytes, id);
-	}
+	read_game(bytes, 1);
+	//for (size_t id = 0; id < num_games; ++id) {
+	//	read_game(bytes, id);
+	//}
 }

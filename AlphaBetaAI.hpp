@@ -9,9 +9,9 @@
 class AlphaBetaAI : public AI {
 private:
 	double depth;
-	int evaluation;
+	int evaluation = 0;
 	std::mutex mtx;
-	Cell move;
+	Cell move = Cell::Pass();
 
 	static int nearby_empty(const BitBoard& stones, const BitBoard& empty) {
 		BitBoard near = 0x0LL;
@@ -272,5 +272,10 @@ public:
 		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
 		return move;
+	}
+
+	void clear() override {
+		evaluation = 0;
+		move = Cell::Pass();
 	}
 };

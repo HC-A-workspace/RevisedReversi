@@ -322,3 +322,12 @@ void calculate_fixed_stones(const BitBoard& self, const BitBoard& opponent, BitB
 	//Fixed for UR-DL
 	calculate_fixed_stones_helper(self, opponent, empty, self_fixed, opponent_fixed, UP_RIGHT, DOWN_LEFT);
 }
+
+int openness(const BitBoard& board, const BitBoard& empty) {
+	const BitBoard translated = translate(board, UP) | translate(board, DOWN)
+		| translate(board, LEFT) | translate(board, RIGHT)
+		| translate(board, UP_LEFT) | translate(board, UP_RIGHT)
+		| translate(board, DOWN_LEFT) | translate(board, DOWN_RIGHT);
+
+	return count_stones(translated & empty);
+}

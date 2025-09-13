@@ -5,27 +5,51 @@
 /**
 Feature parameters
 
-1 parameter
-is my turn? {-1, 1}
+0:  is my turn
+1:  the number of my total stone
+2:  the number of my corner stone
+3:  the number of my C stone
+4:  the number of my X stone
+5:  the number of my outer edge stone
+6:  the number of my inner edge stone
+7:  the number of opponent's total stone
+8:  the number of opponent's corner stone
+9:  the number of opponent's C stone
+10: the number of opponent's X stone
+11: the number of opponent's outer edge stone
+12: the number of opponent's inner edge stone
+13: the openness of my total stone
+14: the openness of my corner stone
+15: the openness of my C stone
+16: the openness of my X stone
+17: the openness of my outer edge stone
+18: the openness of my inner edge stone
+19: the openness of opponent's total stone
+20: the openness of opponent's corner stone
+21: the openness of opponent's C stone
+22: the openness of opponent's X stone
+23: the openness of opponent's outer edge stone
+24: the openness of opponent's inner edge stone
+25: the number of my total candidates
+26: the number of my total fixed stone
+27: the number of my corner candidates
+28: the number of my corner fixed stone
+29: the number of my C candidates
+30: the number of my C fixed stone
+31: the number of my X candidates
+32: the number of my X fixed stone
+33: the number of opponent's total candidates
+34: the number of opponent's total fixed stone
+35: the number of opponent's corner candidates
+36: the number of opponent's corner fixed stone
+37: the number of opponent's C candidates
+38: the number of opponent's C fixed stone
+39: the number of opponent's X candidates
+40: the number of opponent's X fixed stone
+41: the number of flip stone
+42: the openness of flip stone
 
-2 * 2 * 6 = 24 parameters
-(the number | the openness) of (my | opponent's)
-	(total | corner | c | x | outer egde | inner edge) stones
-
-2 * 4 * 2 = 16 parameters
-the number of (my | opponent's)
-	(total | corner | c | x) (candidates | fixed stone)
-
-2 parameters
-(the number | the openness) of flipped stones
-
-4 parameters
-has (my | opponent's) (corner candidates | fixed stones)? {0, 1}
-
-2 parameters
-(my | opponent's) definitely lose or win {-1, 0, 1}
-
-total 39 parameters
+total 43 parameters
 
 output: #my stone - #opponent's stone when game is finished
 */
@@ -40,6 +64,164 @@ constexpr BitBoard OUTER_EDGE_MASK = 0x3c0081818181003cLL;
 
 constexpr BitBoard INNER_EDGE_MASK = 0x003c424242423c00LL;
 
-constexpr size_t NUM_OF_FEATURES = 81;
+constexpr size_t NUM_OF_FEATURES = 43;
 
+inline double safe_div(const double a, const double b) {
+	return (a == 0) ? 0.0 : a / b;
+}
 
+std::vector<double> get_feature_params(const Board& current, const Board& prev, const bool is_myturn) {
+
+	const BitBoard& my_board = is_myturn ? current.get_self() : current.get_opponent();
+	const BitBoard& opponent_board = is_myturn ? current.get_opponent() : current.get_self();
+
+	const BitBoard empty = ~(my_board | opponent_board);
+
+	const BitBoard& my_candidates = is_myturn ? current.get_candidates() : prev.get_candidates();
+	const BitBoard& opponent_candidates = is_myturn ? prev.get_candidates() : current.get_candidates();
+
+	const BitBoard flipped = current.get_opponent() ^ prev.get_self();
+
+	BitBoard my_fixed = 0x0LL, opponent_fixed = 0x0LL;
+	calculate_fixed_stones(my_board, opponent_board, my_fixed, opponent_fixed);
+
+	const int num_my_fixed = count_stones(my_fixed);
+	const int num_opponent_fixed = count_stones(opponent_fixed);
+
+	std::vector<double> features;
+	if (num_my_fixed > BOARD_SIZE * BOARD_SIZE / 2 || num_opponent_fixed > BOARD_SIZE * BOARD_SIZE / 2) {
+		return features;
+	}
+	features.reserve(NUM_OF_FEATURES);
+
+	// 0: is my turn
+	features.push_back(is_myturn ? 1.0 : -1.0);
+
+	// 1: the number of my total stone
+	features.push_back((double)count_stones(my_board) / 64.0);
+
+	// 2: the number of my corner stone
+	features.push_back((double)count_stones(my_board & CORNER_MASK) / 4.0);
+
+	// 3: the number of my C stone
+	features.push_back((double)count_stones(my_board & C_MASK) / 8.0);
+
+	// 4: the number of my X stone
+	features.push_back((double)count_stones(my_board & X_MASK) / 4.0);
+
+	// 5: the number of my outer edge stone
+	features.push_back((double)count_stones(my_board & OUTER_EDGE_MASK) / 16.0);
+
+	// 6: the number of my inner edge stone
+	features.push_back((double)count_stones(my_board & INNER_EDGE_MASK) / 16.0);
+
+	// 7: the number of opponent's total stone
+	features.push_back((double)count_stones(opponent_board) / 64.0);
+
+	// 8: the number of opponent's corner stone
+	features.push_back((double)count_stones(opponent_board & CORNER_MASK) / 4.0);
+
+	// 9: the number of opponent's C stone
+	features.push_back((double)count_stones(opponent_board & C_MASK) / 8.0);
+
+	// 10: the number of opponent's X stone
+	features.push_back((double)count_stones(opponent_board & X_MASK) / 4.0);
+
+	// 11: the number of opponent's outer edge stone
+	features.push_back((double)count_stones(opponent_board & OUTER_EDGE_MASK) / 16.0);
+
+	// 12: the number of opponent's inner edge stone
+	features.push_back((double)count_stones(opponent_board & INNER_EDGE_MASK) / 16.0);
+
+	// 13: the openness of my total stone
+	features.push_back(safe_div(openness(my_board, empty), 64 * (features.at(1) + features.at(7))));
+
+	// 14: the openness of my corner stone
+	features.push_back(safe_div(openness(my_board & CORNER_MASK, empty), 4 * (features.at(2) + features.at(8))));
+
+	// 15: the openness of my C stone
+	features.push_back(safe_div(openness(my_board & C_MASK, empty), 8 * (features.at(3) + features.at(9))));
+
+	// 16: the openness of my X stone
+	features.push_back(safe_div(openness(my_board & X_MASK, empty), 4 * (features.at(4) + features.at(10))));
+
+	// 17: the openness of my outer edge stone
+	features.push_back(safe_div(openness(my_board & OUTER_EDGE_MASK, empty), 16 * (features.at(5) + features.at(11))));
+
+	// 18: the openness of my inner edge stone
+	features.push_back(safe_div(openness(my_board & INNER_EDGE_MASK, empty), 16 * (features.at(6) + features.at(12))));
+
+	// 19: the openness of opponent's total stone
+	features.push_back(safe_div(openness(opponent_board, empty), 64 * (features.at(1) + features.at(7))));
+
+	// 20: the openness of opponent's corner stone
+	features.push_back(safe_div(openness(opponent_board & CORNER_MASK, empty), 4 * (features.at(2) + features.at(8))));
+
+	// 21: the openness of opponent's C stone
+	features.push_back(safe_div(openness(opponent_board & C_MASK, empty), 8 * (features.at(3) + features.at(9))));
+
+	// 22: the openness of opponent's X stone
+	features.push_back(safe_div(openness(opponent_board & X_MASK, empty), 4 * (features.at(4) + features.at(10))));
+
+	// 23: the openness of opponent's outer edge stone
+	features.push_back(safe_div(openness(opponent_board & OUTER_EDGE_MASK, empty), 16 * (features.at(5) + features.at(11))));
+
+	// 24: the openness of opponent's inner edge stone
+	features.push_back(safe_div(openness(opponent_board & INNER_EDGE_MASK, empty), 16 * (features.at(6) + features.at(12))));
+
+	// 25: the number of my total candidates
+	features.push_back((double)count_stones(my_candidates) / 64.0);
+
+	// 26: the number of my total fixed stone
+	features.push_back((double)count_stones(my_fixed) / 64.0);
+
+	// 27: the number of my corner candidates
+	features.push_back((double)count_stones(my_candidates & CORNER_MASK) / 4.0);
+
+	// 28: the number of my corner fixed stone
+	features.push_back((double)count_stones(my_fixed& CORNER_MASK) / 4.0);
+
+	// 29: the number of my C candidates
+	features.push_back((double)count_stones(my_candidates& C_MASK) / 8.0);
+
+	// 30: the number of my C fixed stone
+	features.push_back((double)count_stones(my_fixed& C_MASK) / 8.0);
+
+	// 31: the number of my X candidates
+	features.push_back((double)count_stones(my_candidates& X_MASK) / 4.0);
+
+	// 32: the number of my X fixed stone
+	features.push_back((double)count_stones(my_fixed& X_MASK) / 4.0);
+
+	// 33: the number of opponent's total candidates
+	features.push_back((double)count_stones(opponent_candidates) / 64.0);
+
+	// 34: the number of opponent's total fixed stone
+	features.push_back((double)count_stones(opponent_fixed) / 64.0);
+
+	// 35: the number of opponent's corner candidates
+	features.push_back((double)count_stones(opponent_candidates& CORNER_MASK) / 4.0);
+
+	// 36: the number of opponent's corner fixed stone
+	features.push_back((double)count_stones(opponent_fixed& CORNER_MASK) / 4.0);
+
+	// 37: the number of opponent's C candidates
+	features.push_back((double)count_stones(opponent_candidates& C_MASK) / 8.0);
+
+	// 38: the number of opponent's C fixed stone
+	features.push_back((double)count_stones(opponent_fixed& C_MASK) / 8.0);
+
+	// 39: the number of opponent's X candidates
+	features.push_back((double)count_stones(opponent_candidates& X_MASK) / 4.0);
+
+	// 40: the number of opponent's X fixed stone
+	features.push_back((double)count_stones(opponent_fixed& X_MASK) / 4.0);
+
+	// 41: the number of flip stone
+	features.push_back(((double)count_stones(flipped) / 64.0) * (is_myturn ? -1.0 : 1.0));
+
+	// 42: the openness of flip stone
+	features.push_back(safe_div(openness(flipped, empty), 64 * features.at(41)) * (is_myturn ? -1.0 : 1.0));
+
+	return features;
+}
