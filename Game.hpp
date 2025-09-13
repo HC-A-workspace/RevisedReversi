@@ -4,6 +4,9 @@
 #include "Board.hpp"
 #include "AI.hpp"
 
+constexpr BitBoard init_black = 0x000000000810000000LL;
+constexpr BitBoard init_white = 0x000000001008000000LL;
+
 class Game {
 private:
 	Board board;
@@ -13,7 +16,7 @@ private:
 	std::function<Cell(const Board&)> human_play;
 	Cell move = Cell::Pass();
 public:
-	Game() = default;
+	Game() : board(Board(init_black, init_white)) {};
 
 	Game(const Board& board_) : board(board_) {};
 

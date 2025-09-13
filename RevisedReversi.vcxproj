@@ -130,7 +130,12 @@
     <ClInclude Include="AlphaBetaAI.hpp" />
     <ClInclude Include="BitBoard.hpp" />
     <ClInclude Include="Board.hpp" />
+    <ClInclude Include="Feature.hpp" />
     <ClInclude Include="Game.hpp" />
+    <ClInclude Include="MemorizedAlphaBetaAI.hpp" />
+    <ClInclude Include="MemorizedNegaAlphaAI.hpp" />
+    <ClInclude Include="NegaAlphaAI.hpp" />
+    <ClInclude Include="reader.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

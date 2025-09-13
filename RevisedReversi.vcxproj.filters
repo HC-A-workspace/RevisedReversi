@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="ヘッダー ファイル\wthor">
+      <UniqueIdentifier>{3e8bba22-ec32-458c-a4fc-bfef7fb2722b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RevisedReversi.cpp">
@@ -34,6 +37,21 @@
     </ClInclude>
     <ClInclude Include="Game.hpp">
       <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="MemorizedAlphaBetaAI.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="MemorizedNegaAlphaAI.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="NegaAlphaAI.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="reader.hpp">
+      <Filter>ヘッダー ファイル\wthor</Filter>
+    </ClInclude>
+    <ClInclude Include="Feature.hpp">
+      <Filter>ヘッダー ファイル\wthor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

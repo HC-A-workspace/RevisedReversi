@@ -5,15 +5,14 @@
 #include "NegaAlphaAI.hpp"
 #include "AlphaBetaAI.hpp"
 #include "Game.hpp"
+#include "reader.hpp"
+
+#define GAME false
 
 int main()
 {
-	BitBoard white = from_cells({ Cell("d4"), Cell("e5")});
-	BitBoard black = from_cells({ Cell("d5"), Cell("e4") });
-
-	Board board(black, white);
-
-	Game game(black, white);
+#if GAME
+	Game game;
 
 	std::string black_y_or_n;
 	while (black_y_or_n != "y" && black_y_or_n != "n") {
@@ -55,11 +54,11 @@ int main()
 			}
 		}
 		return Cell(move);
-	};
+		};
 
 	game.set_human_play(human_play);
-	
-	while(!game.is_game_over()) {
+
+	while (!game.is_game_over()) {
 		std::cout << game.to_string() << std::endl;
 		std::cout << "white: " << game.white_count() << ", black: " << game.black_count() << std::endl;
 		std::cout << std::endl;
@@ -88,4 +87,7 @@ int main()
 	std::cout << game.to_string() << std::endl;
 	std::cout << std::endl;
 	std::cout << "Game set. White: " << white_count << ", Black: " << black_count << std::endl;
+#else
+	wthor_reader("C:\\Users\\cANDaYITP\\Downloads\\WTH_2021\\WTH_2021.wtb");
+#endif
 }

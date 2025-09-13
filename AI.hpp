@@ -8,7 +8,7 @@ class AI {
 protected:
 	Board board;
 public:
-	double elapsed;
+	double elapsed = 0;
 	AI() = default;
 
 	AI(const Board& init) : board(init) {};
