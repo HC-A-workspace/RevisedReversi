@@ -1,0 +1,6 @@
+以前作ったReversiTestの改良版となるrepository。
+
+一番の違いはReversiの盤面評価関数を私が設計するのではなく、DeepLearingを使って作った評価関数を用いたAI(DLAlphaBetaAI)を導入したこと。
+alphabeta法の木を記録するMemorizedAlphaBetaAIとかも作ってはみたものの、やはりメモリーをかなり消費するので、うまくはいかなかった。
+
+現最強AIはReversiTestのAIを含めても、DLAlphaBetaAI。
