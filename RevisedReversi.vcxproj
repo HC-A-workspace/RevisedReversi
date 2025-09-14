@@ -130,6 +130,7 @@
     <ClInclude Include="AlphaBetaAI.hpp" />
     <ClInclude Include="BitBoard.hpp" />
     <ClInclude Include="Board.hpp" />
+    <ClInclude Include="DLAlphaBetaAI.hpp" />
     <ClInclude Include="Feature.hpp" />
     <ClInclude Include="Game.hpp" />
     <ClInclude Include="MemorizedAlphaBetaAI.hpp" />
@@ -139,6 +140,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="data\weight\data.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

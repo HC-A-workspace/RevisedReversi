@@ -17,7 +17,7 @@ public:
 		board = board_;
 	}
 
-	virtual int eval() const = 0;
+	virtual double eval() const = 0;
 	
 	virtual void play(const Cell& move) {
 		if (move.is_pass()) {
@@ -66,7 +66,7 @@ public:
 		return move;
 	}
 
-	int eval() const override {
+	double eval() const override {
 		return 0;
 	}
 };

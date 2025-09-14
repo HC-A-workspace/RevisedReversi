@@ -285,7 +285,7 @@ public:
 		root = std::make_shared<Node>(board);
 	}
 
-	int eval() const override {
+	double eval() const override {
 		return -root->get_eval();
 	}
 

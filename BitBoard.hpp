@@ -7,6 +7,7 @@
 
 using BitBoard = unsigned long long;
 constexpr int BOARD_SIZE = 8;
+constexpr int BOARD_AREA = BOARD_SIZE * BOARD_SIZE;
 
 inline bool is_empty(const BitBoard& board) {
 	return board == 0x0LL;
@@ -58,7 +59,7 @@ public:
 		loc = x + BOARD_SIZE * y;
 	};
 
-	Cell(const BitBoard& stone) : loc(msb_loc(stone)) { };
+	Cell(const BitBoard& stone) : loc(msb_loc(stone)) {};
 
 	int X() const { return loc % BOARD_SIZE; };
 
@@ -118,7 +119,7 @@ constexpr Direction ALL_DIRS[8] = {
 std::string to_string(const BitBoard& board, const char& mark = 'o') {
 	std::string out = " abcdefgh";
 	BitBoard stone = 0x1LL;
-	for (int n = 0; n < BOARD_SIZE * BOARD_SIZE; ++n) {
+	for (int n = 0; n < BOARD_AREA; ++n) {
 		if (n % BOARD_SIZE == 0) {
 			out += std::to_string(n / BOARD_SIZE + 1);
 		}
@@ -147,7 +148,7 @@ BitBoard from_table(const std::vector<std::vector<int>>& table) {
 			stone <<= 1;
 		}
 	}
-	if (cnt != BOARD_SIZE * BOARD_SIZE) {
+	if (cnt != BOARD_AREA) {
 		throw std::length_error("table size is invalid");
 	}
 	return board;
@@ -252,7 +253,7 @@ inline void translate_self(BitBoard& board, const Direction& dir, const int& shi
 	}
 }
 
-inline BitBoard translate(const BitBoard& board, const Direction& dir, const int& shift=1) {
+inline BitBoard translate(const BitBoard& board, const Direction& dir, const int& shift = 1) {
 	auto out = board;
 	translate_self(out, dir, shift);
 	return out;

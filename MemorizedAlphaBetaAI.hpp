@@ -319,7 +319,7 @@ private:
 public:
 	MemorizedAlphaBetaAI(const double depth_ = 8.0) : AI(), depth(depth_) {};
 
-	int eval() const override {
+	double eval() const override {
 		return evaluation;
 	}
 

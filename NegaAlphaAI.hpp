@@ -159,7 +159,7 @@ private:
 public:
 	NegaAlphaAI(const int depth_) : AI(), depth(depth_) {};
 
-	int eval() const override {
+	double eval() const override {
 		return evaluation;
 	}
 

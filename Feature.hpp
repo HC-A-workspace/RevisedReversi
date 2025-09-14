@@ -48,8 +48,14 @@ Feature parameters
 40: the number of opponent's X fixed stone
 41: the number of flip stone
 42: the openness of flip stone
+43: board data
+.
+.   my fixed stone: 1, my stone: 0.5, my candidate: 0.25, empty: 0, ...
+.
+106 : board data
 
-total 43 parameters
+
+total 107 parameters
 
 output: #my stone - #opponent's stone when game is finished
 */
@@ -64,7 +70,7 @@ constexpr BitBoard OUTER_EDGE_MASK = 0x3c0081818181003cLL;
 
 constexpr BitBoard INNER_EDGE_MASK = 0x003c424242423c00LL;
 
-constexpr size_t NUM_OF_FEATURES = 43;
+constexpr size_t NUM_OF_FEATURES = 107;
 
 inline double safe_div(const double a, const double b) {
 	return (a == 0) ? 0.0 : a / b;
@@ -87,9 +93,18 @@ std::vector<double> get_feature_params(const Board& current, const Board& prev, 
 
 	const int num_my_fixed = count_stones(my_fixed);
 	const int num_opponent_fixed = count_stones(opponent_fixed);
+	const int num_my_candidates = count_stones(my_candidates);
+	const int num_opponent_candidates = count_stones(opponent_candidates);
 
 	std::vector<double> features;
-	if (num_my_fixed > BOARD_SIZE * BOARD_SIZE / 2 || num_opponent_fixed > BOARD_SIZE * BOARD_SIZE / 2) {
+	if (num_my_fixed > BOARD_AREA / 2 || num_opponent_fixed > BOARD_AREA / 2 ||
+		((is_myturn ? num_my_candidates : num_opponent_candidates) == 0 && count_stones(current.pass().get_candidates()) == 0)) {
+		features.push_back(count_stones(my_board));
+		features.push_back(count_stones(opponent_board));
+		features.push_back(num_my_candidates);
+		features.push_back(num_opponent_candidates);
+		features.push_back(num_my_fixed);
+		features.push_back(num_opponent_fixed);
 		return features;
 	}
 	features.reserve(NUM_OF_FEATURES);
@@ -170,52 +185,52 @@ std::vector<double> get_feature_params(const Board& current, const Board& prev, 
 	features.push_back(safe_div(openness(opponent_board & INNER_EDGE_MASK, empty), 16 * (features.at(6) + features.at(12))));
 
 	// 25: the number of my total candidates
-	features.push_back((double)count_stones(my_candidates) / 64.0);
+	features.push_back((double)num_my_candidates / 64.0);
 
 	// 26: the number of my total fixed stone
-	features.push_back((double)count_stones(my_fixed) / 64.0);
+	features.push_back((double)num_my_fixed / 64.0);
 
 	// 27: the number of my corner candidates
 	features.push_back((double)count_stones(my_candidates & CORNER_MASK) / 4.0);
 
 	// 28: the number of my corner fixed stone
-	features.push_back((double)count_stones(my_fixed& CORNER_MASK) / 4.0);
+	features.push_back((double)count_stones(my_fixed & CORNER_MASK) / 4.0);
 
 	// 29: the number of my C candidates
-	features.push_back((double)count_stones(my_candidates& C_MASK) / 8.0);
+	features.push_back((double)count_stones(my_candidates & C_MASK) / 8.0);
 
 	// 30: the number of my C fixed stone
-	features.push_back((double)count_stones(my_fixed& C_MASK) / 8.0);
+	features.push_back((double)count_stones(my_fixed & C_MASK) / 8.0);
 
 	// 31: the number of my X candidates
-	features.push_back((double)count_stones(my_candidates& X_MASK) / 4.0);
+	features.push_back((double)count_stones(my_candidates & X_MASK) / 4.0);
 
 	// 32: the number of my X fixed stone
-	features.push_back((double)count_stones(my_fixed& X_MASK) / 4.0);
+	features.push_back((double)count_stones(my_fixed & X_MASK) / 4.0);
 
 	// 33: the number of opponent's total candidates
-	features.push_back((double)count_stones(opponent_candidates) / 64.0);
+	features.push_back((double)num_opponent_candidates / 64.0);
 
 	// 34: the number of opponent's total fixed stone
-	features.push_back((double)count_stones(opponent_fixed) / 64.0);
+	features.push_back((double)num_opponent_fixed / 64.0);
 
 	// 35: the number of opponent's corner candidates
-	features.push_back((double)count_stones(opponent_candidates& CORNER_MASK) / 4.0);
+	features.push_back((double)count_stones(opponent_candidates & CORNER_MASK) / 4.0);
 
 	// 36: the number of opponent's corner fixed stone
-	features.push_back((double)count_stones(opponent_fixed& CORNER_MASK) / 4.0);
+	features.push_back((double)count_stones(opponent_fixed & CORNER_MASK) / 4.0);
 
 	// 37: the number of opponent's C candidates
-	features.push_back((double)count_stones(opponent_candidates& C_MASK) / 8.0);
+	features.push_back((double)count_stones(opponent_candidates & C_MASK) / 8.0);
 
 	// 38: the number of opponent's C fixed stone
-	features.push_back((double)count_stones(opponent_fixed& C_MASK) / 8.0);
+	features.push_back((double)count_stones(opponent_fixed & C_MASK) / 8.0);
 
 	// 39: the number of opponent's X candidates
-	features.push_back((double)count_stones(opponent_candidates& X_MASK) / 4.0);
+	features.push_back((double)count_stones(opponent_candidates & X_MASK) / 4.0);
 
 	// 40: the number of opponent's X fixed stone
-	features.push_back((double)count_stones(opponent_fixed& X_MASK) / 4.0);
+	features.push_back((double)count_stones(opponent_fixed & X_MASK) / 4.0);
 
 	// 41: the number of flip stone
 	features.push_back(((double)count_stones(flipped) / 64.0) * (is_myturn ? -1.0 : 1.0));
@@ -223,5 +238,35 @@ std::vector<double> get_feature_params(const Board& current, const Board& prev, 
 	// 42: the openness of flip stone
 	features.push_back(safe_div(openness(flipped, empty), 64 * features.at(41)) * (is_myturn ? -1.0 : 1.0));
 
+	// 43 to 106: board data
+	BitBoard loc_mask = 0x1LL;
+	for (size_t loc = 0; loc < BOARD_AREA; ++loc) {
+		double score = 0.0;
+		if (!is_empty(my_candidates & loc_mask)) {
+			score += 0.25;
+		}
+		if (!is_empty(opponent_candidates & loc_mask)) {
+			score += -0.25;
+		}
+		if (!is_empty(my_fixed & loc_mask)) {
+			score += 1.0;
+		}
+		else if (!is_empty(my_board & loc_mask)) {
+			score += 0.5;
+		}
+		else if (!is_empty(opponent_fixed & loc_mask)) {
+			score -= 1.0;
+		}
+		else if (!is_empty(opponent_board & loc_mask)) {
+			score -= 0.5;
+		}
+		features.push_back(score);
+		loc_mask <<= 1;
+	}
+
 	return features;
+}
+
+inline double result_evaluation(const int my_stones, const int opponent_stones) {
+	return 2.0 * (double)(my_stones * my_stones + (BOARD_AREA - opponent_stones - my_stones)) / (double)(BOARD_AREA * BOARD_AREA) - 1.0;
 }

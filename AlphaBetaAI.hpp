@@ -7,21 +7,12 @@
 #include "AI.hpp"
 
 class AlphaBetaAI : public AI {
-private:
+protected:
 	double depth;
-	int evaluation = 0;
+	double evaluation = 0;
 	std::mutex mtx;
 	Cell move = Cell::Pass();
-
-	static int nearby_empty(const BitBoard& stones, const BitBoard& empty) {
-		BitBoard near = 0x0LL;
-
-		for (auto& dir : ALL_DIRS) {
-			near |= translate(stones, dir) & empty;
-		}
-
-		return count_stones(near);
-	}
+	double depth_offset = 0.0;
 
 	static int evaluate_child(const Board& board, const Board& prev, const bool is_myturn) {
 		const BitBoard& self_board = is_myturn ? board.get_self() : board.get_opponent();
@@ -34,7 +25,7 @@ private:
 
 		const BitBoard diff = board.get_opponent() ^ prev.get_self();
 
-		const int n_diff_open = nearby_empty(diff, empty);
+		const int n_diff_open = openness(diff, empty);
 
 		const BitBoard corner = 0x8100000000000081LL;
 
@@ -66,7 +57,7 @@ private:
 		}
 	}
 
-	static int evaluate(const Board& board, const Board& prev, const bool is_myturn) {
+	virtual double evaluate(const Board& board, const Board& prev, const bool is_myturn) {
 
 		const BitBoard& self_board = is_myturn ? board.get_self() : board.get_opponent();
 		const BitBoard& opponent_board = is_myturn ? board.get_opponent() : board.get_self();
@@ -78,8 +69,8 @@ private:
 
 		if (board.finished()) {
 			const int score_stone = n_self - n_opposite;
-			if (n_self > n_opposite) return score_stone + 1000000;
-			else if (n_self < n_opposite) return score_stone - 1000000;
+			if (n_self > n_opposite) return score_stone + 100000;
+			else if (n_self < n_opposite) return score_stone - 100000;
 			else return 0;
 		}
 
@@ -102,9 +93,9 @@ private:
 
 		const BitBoard diff = board.get_opponent() ^ prev.get_self();
 
-		const int n_diff_open = nearby_empty(diff ^ (is_myturn ? opponent_fixed : self_fixed), empty);
-		const int n_self_open = nearby_empty(self_board ^ self_fixed, empty);
-		//const int n_opponent_open = nearby_empty(opponent_board ^ opponent_fixed, ~(self_board | opponent_board));
+		const int n_diff_open = openness(diff ^ (is_myturn ? opponent_fixed : self_fixed), empty);
+		const int n_self_open = openness(self_board ^ self_fixed, empty);
+		//const int n_opponent_open = openness(opponent_board ^ opponent_fixed, ~(self_board | opponent_board));
 
 		const int score_open = - n_self_open + 2 * (is_myturn ? n_diff_open : -n_diff_open);
 		const int score_candidates = - n_opponent_candidates;
@@ -126,17 +117,17 @@ private:
 			score += 500;
 		}
 		if (n_self_fixed > BOARD_SIZE * BOARD_SIZE / 2) {
-			score += 500000;
+			score += 50000;
 		}
 
 		if (n_opponent_fixed > BOARD_SIZE * BOARD_SIZE / 2) {
-			score -= 500000;
+			score -= 50000;
 		}
 
 		return score;
 	}
 
-	static int alpha_beta(const Board& board, const Board& prev, const double depth, const bool is_myturn, int alpha, int beta) {
+	double alpha_beta(const Board& board, const Board& prev, const double depth, const bool is_myturn, double alpha, double beta) {
 		if (depth <= 0 || board.finished()) {
 			return evaluate(board, prev, is_myturn);
 		}
@@ -204,13 +195,13 @@ private:
 public:
 	AlphaBetaAI(const double depth_ = 8.0) : AI(), depth(depth_) {};
 
-	int eval() const override {
+	double eval() const override {
 		return evaluation;
 	}
 
 	void worker(const Board& child, const Board& board, const double depth)
 	{
-		int tmp = alpha_beta(child, board, depth, false, evaluation, INT_MAX - 1);
+		double tmp = alpha_beta(child, board, depth, false, evaluation, INT_MAX - 1);
 
 		std::lock_guard<std::mutex> lock(mtx);
 		if (evaluation < tmp) {
@@ -231,35 +222,20 @@ public:
 
 		evaluation = INT_MIN + 1;
 
-		if (rest_turn < 13) {
-			int cnt = 0;
-			for (auto& child : children) {
-				if (cnt < 2) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + 3.5));
-				}
-				else if (cnt < 6) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + 2.0));
-				}
-				else {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth));
-				}
-				cnt++;
+		if (rest_turn == 12) depth_offset += 2.0;
+
+		int cnt = 0;
+		for (auto& child : children) {
+			if (cnt < 2) {
+				threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + depth_offset + 0.5));
 			}
-		}
-		else {
-			int cnt = 0;
-			for (auto& child : children) {
-				if (cnt < 2) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + 0.5));
-				}
-				else if (cnt < 6) {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth));
-				}
-				else {
-					threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth - 0.5));
-				}
-				cnt++;
+			else if (cnt < 6) {
+				threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + depth_offset));
 			}
+			else {
+				threads.push_back(std::thread(&AlphaBetaAI::worker, this, child, board, depth + depth_offset - 0.5));
+			}
+			cnt++;
 		}
 
 		for (auto& thd : threads)
