@@ -29,7 +29,7 @@ private:
 		}
 	}
 
-	inline static double ReLU(double x) { return (x > 0.5) ? 0.5 : 0.0; }
+	inline static double ReLU(double x) { return (x > 0.0) ? x : 0.0; }
 
 	inline double dot_row(const std::vector<double>& W, size_t row, size_t cols, const std::vector<double>& x) const {
 		const double* w = &W[row * cols];
@@ -105,10 +105,9 @@ public:
 		Cell out = AlphaBetaAI::choose_move();
 
 		if (!depth_updated && (double)cnt_definite_leaf / (double)cnt_leaf > 0.01) {
-			depth_offset += 2.0;
+			depth_offset += 1.0;
 			depth_updated = true;
 		}
-		std::cout << (double)cnt_definite_leaf / (double)cnt_leaf << std::endl;
 		return out;
 	}
 

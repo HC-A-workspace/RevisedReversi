@@ -14,8 +14,8 @@ int main()
 {
 #if GAME
 	Game game;
-	std::unique_ptr<AI> black_ai = std::make_unique<DLAlphaBetaAI>();
-	std::unique_ptr<AI> white_ai = std::make_unique<RandomAI>();
+	std::unique_ptr<AI> black_ai = std::make_unique<AlphaBetaAI>();
+	std::unique_ptr<AI> white_ai = std::make_unique<DLAlphaBetaAI>();
 	game.play_on_console(std::move(black_ai), std::move(white_ai));
 #else
 	WthorTransformer transformer;
